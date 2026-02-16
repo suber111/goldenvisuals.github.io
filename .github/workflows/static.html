@@ -1,0 +1,1538 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Golden Visuals – Particles</title>
+  <script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@2.0.27"></script>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #16213e 100%);
+      overflow-x: hidden;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    #ui {
+      position: fixed;
+      z-index: 100;
+      top: 15px;
+      left: 15px;
+      background: rgba(20, 25, 45, 0.98);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      box-shadow: 
+        0 8px 32px rgba(0,0,0,0.4),
+        0 0 0 1px rgba(255,255,255,0.1),
+        inset 0 1px 0 rgba(255,255,255,0.1);
+      padding: 20px 25px 25px 25px;
+      max-width: 900px;
+      max-height: 85vh;
+      overflow-y: auto;
+      user-select: none;
+      border: 1px solid rgba(255,217,90,0.2);
+    }
+    #ui::-webkit-scrollbar {
+      width: 6px;
+    }
+    #ui::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.3);
+      border-radius: 3px;
+    }
+    #ui::-webkit-scrollbar-thumb {
+      background: rgba(255,217,90,0.5);
+      border-radius: 3px;
+    }
+    #ui::-webkit-scrollbar-thumb:hover {
+      background: rgba(255,217,90,0.8);
+    }
+    .panel {
+      margin-bottom: 18px;
+      padding: 12px;
+      background: rgba(255,255,255,0.02);
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .panel-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #ffd95a;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .panel-title::before {
+      content: "✦";
+      font-size: 14px;
+    }
+    #controls, #extra, #morefx, #fx2, #audioPanel, #watermarkPanel, #backgroundPanel, #particlePanel {margin-bottom:12px;}
+    input, select, button {
+      margin: 4px 8px 4px 4px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+      padding: 6px 10px;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    input:focus, select:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(255,217,90,0.4);
+      background: rgba(255,255,255,0.12);
+    }
+    button {
+      cursor: pointer;
+      background: linear-gradient(135deg, #ffd95a, #ffaa00);
+      color: #1a1a2e;
+      font-weight: 600;
+      border: none;
+      padding: 8px 16px;
+      box-shadow: 0 4px 12px rgba(255,217,90,0.3);
+    }
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(255,217,90,0.4);
+    }
+    .rec-btn {
+      font-size: 16px; 
+      background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+      color: white;
+      padding: 10px 20px;
+      margin-right: 12px;
+      box-shadow: 0 4px 15px rgba(255,107,107,0.4);
+    }
+    .rec-btn:hover {background: linear-gradient(135deg, #ff5252, #d32f2f);}
+    .slider {width: 100px;}
+    .small-input {width: 55px;}
+    .label {
+      font-size: 14px;
+      font-weight: 500;
+      color: #e0e0e0;
+      display: inline-block;
+      min-width: 120px;
+    }
+    canvas {
+      display: block;
+      margin: 60px auto 0 auto;
+      border-radius: 24px;
+      box-shadow: 
+        0 12px 48px rgba(0,0,0,0.6),
+        0 0 60px rgba(255,217,90,0.2),
+        inset 0 1px 0 rgba(255,255,255,0.1);
+      outline: none;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    #status {font-size: 15px; color: #ffd95a; margin-left: 12px;}
+    ::selection {background: rgba(255,217,90,0.3);}
+  </style>
+</head>
+<body>
+<div id="ui">
+  <div class="panel" id="recordPanel">
+    <div class="panel-title">📹 Recording</div>
+    <button id="recWebmBtn" class="rec-btn">▶️ Record WebM</button>
+    <span id="recWebmStatus"></span>
+  </div>
+
+  <div class="panel" id="particlePanel">
+    <div class="panel-title">✨ Particles</div>
+    <label class="label">Style:
+      <select id="particleType">
+        <option value="orb">orb</option>
+        <option value="spark">sparks</option>
+        <option value="comet">comet tail</option>
+        <option value="ring">ring</option>
+        <option value="flake">crystal</option>
+		<option value="spikes">spikes</option>
+        <option value="star">star</option>
+        <option value="swirl">swirl</option>
+      </select>
+    </label>
+    <label class="label">Amount: <input id="particleAmount" type="number" min="0" max="500" value="40" class="small-input"></label>
+    <label class="label">Size: <input id="particleSize" type="number" min="0" max="16" step="0.1" value="2.2" class="small-input"></label>
+    <label class="label">Speed: <input id="particleSpeed" type="number" step="0.1" min="0" max="3" value="1.1" class="small-input"></label>
+    <label class="label">Alpha: <input id="particleAlpha" type="number" step="0.01" min="0" max="1" value="0.9" class="small-input"></label>
+    <label class="label">Lifetime: <input id="particleLifetime" type="range" min="20" max="80" step="5" value="45" class="slider"></label>
+    <label class="label">Disable: <input id="disableParticles" type="checkbox"></label>
+    <button id="resetParticles">Reset Particles</button>
+  </div>
+
+  <div class="panel" id="pianoPanel">
+    <div class="panel-title">🎹 Piano</div>
+    <label class="label">Width: <input id="pianoWidth" type="number" min="400" max="3840" step="10" value="1920"></label>
+    <label class="label">Visible keys:
+      <input id="visibleKeys" type="range" min="25" max="88" value="88" class="slider">
+      <span id="keyCountDisplay">88</span>
+    </label>
+    <label class="label">Key offset:
+      <input id="keyOffset" type="range" min="0" max="53" value="0" class="slider">
+      <span id="keyOffsetDisplay">0</span>
+    </label>
+    <label class="label">Alpha: <input id="pianoAlpha" type="range" min="0.2" max="1" step="0.01" value="1" class="slider"></label>
+    <label class="label">Shadow: <input id="shadowDepth" type="range" min="0" max="64" value="18" class="slider"></label>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">⚡ Playback</div>
+    <label class="label">Note speed: <input id="noteSpeed" type="number" min="0.3" max="100" step="0.1" value="1" class="small-input""></label>
+    <label class="label">Note delay: <input id="noteDelay" type="number" min="0" max="10" step="0.1" value="1" class="small-input"></label>
+    <label class="label">Tempo: <input id="tempo" type="number" min="30" max="220" value="120" class="small-input"></label>
+    <label class="label">Autoplay: <input id="autoplay" type="checkbox"></label>
+    <label class="label">Mark notes: <input id="markKeysNotes" type="checkbox"></label>
+    <button id="pauseBtn">⏸️ Pause</button>
+    <button id="clearMidi">Clear MIDI</button>
+    <span id="status"></span>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">🎨 Effects</div>
+    <label class="label">Nut gradient: <input id="nutGradient" type="checkbox"></label>
+    <label class="label">Particle blur: <input id="particleBlur" type="checkbox"></label>
+    <label class="label">Night mode: <input id="nightMode" type="checkbox" checked></label>
+    <label class="label">Rainbow mode: <input id="rainbowMode" type="checkbox"></label>
+    <label class="label">Ghost notes: <input id="ghostNotes" type="checkbox"></label>
+    <label class="label">Bounce particles: <input id="bounceParticles" type="checkbox"></label>
+    <label class="label">Particles UP: <input id="particlesUp" type="checkbox" checked></label>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">🌪️ Physics</div>
+    <label class="label">Gravity: <input id="gravity" type="number" min="-0.5" max="0.5" step="0.01" value="-0.08" class="small-input"></label>
+    <label class="label">Turbulence: <input id="turbulence" type="number" min="0" max="100" step="0.05" value="0.6" class="small-input"></label>
+    <label class="label">Lag disabler: <input id="lagDisabler" type="checkbox" checked></label>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">🎭 Saber Style (Coming soon)</div>
+    <label class="label">
+      <select id="saberStyle">  
+      <button id="toggleSaberBtn">⚡ Disable Saber</button>	  
+      </select>
+    </label>
+  </div>
+  
+
+  <div class="panel" id="backgroundPanel">
+    <div class="panel-title">🌑 Background</div>
+    <label class="label">Color: <input id="bgColor" type="color" value="#121323"></label>
+  </div>
+
+  <div class="panel" id="watermarkPanel">
+    <div class="panel-title">💧 Watermark</div>
+    <label class="label">Enable: <input id="watermarkEnabled" type="checkbox" checked></label>
+    <label class="label">Text: <input id="watermarkText" type="text" value="Golden Visuals" style="width:200px;"></label>
+  </div>
+
+  <div id="colors" style="margin: 12px 0;"></div>
+
+  <div class="panel">
+    <div class="panel-title">🎵 Files</div>
+    <label class="label">MIDI: <input type="file" id="midiFile" accept=".mid,.midi"></label>
+    <label class="label">Audio: <input type="file" id="audioFile" accept="audio/*"></label>
+    <label class="label">Offset: <input id="audioOffset" type="number" value="0" step="0.01" class="small-input">s</label>
+    <button id="start" style="background: linear-gradient(135deg, #4ecdc4, #44a08d);">▶️ Start</button>
+    <button id="stop" style="background: linear-gradient(135deg, #ff6b6b, #ee5a52);">⏹️ Stop</button>
+    <button id="randomColors">🎨 Random Colors</button>
+    <button id="snapshotBtn">📸 Snapshot</button>
+	<!-- Buttons for export/import -->
+    <button id="exportPresetBtn">💾 Export Preset</button>
+    <button id="importPresetBtn">📂 Import Preset</button>
+<input type="file" id="importPresetFile" accept=".gv" style="display:none;">
+</label>
+
+
+  </div>
+</div>
+
+<canvas id="waterfall" width="3840" height="2160"></canvas>
+
+<script>
+let pianoHeight = 180;
+let waterfallHeight = 1080;
+let canvas = document.getElementById('waterfall');
+let ctx = canvas.getContext('2d');
+
+function setCanvasSize(){
+  canvas.width = parseInt(document.getElementById('pianoWidth').value);
+  canvas.height = waterfallHeight;
+  ctx.imageSmoothingEnabled = false
+  let isPaused = false;
+  let pausedTime = 0; // w sekundach
+
+}
+setCanvasSize();
+
+// AUDIO
+let audioElement = new Audio();
+audioElement.crossOrigin = "anonymous";
+let audioLoaded = false;
+let audioOffset = 0;
+let tonePlayer = null;
+
+// MIDI / PIANO
+const waterfallScale = 180;
+let pianoY = canvas.height - pianoHeight;
+let saberY = pianoY - 2;
+const waterfallRadius = 6;
+const defaultTrackColors = [
+  "#569D11", "#376BAE", "#F57900", "#CB91D0", "#EE7878", "#E2D038"
+];
+let trackCount = 0, trackColors = [];
+const firstMidi = 21, lastMidi = 108;
+const keysTotal = 88, keyNames = ["A","A#","B","C","C#","D","D#","E","F","F#","G","G#"];
+const keyMap = [];
+let pitch = firstMidi, whiteIdx = 0;
+
+// widoczne klawisze + przesunięcie
+let visibleKeysCount = 88;
+let keyOffset = 0;
+for(let i=0;i<keysTotal;i++,pitch++){
+  let noteIdx=(pitch-21)%12, octave=Math.floor((pitch-12)/12);
+  let isBlack=keyNames[noteIdx].includes('#');
+  keyMap.push({midi:pitch, note:keyNames[noteIdx], octave:octave,
+    type: isBlack?"black":"white", wIdx:isBlack?whiteIdx-1:whiteIdx});
+  if(!isBlack) whiteIdx++;
+}
+
+let whiteKeys = [];
+let blackKeys = [];
+let whiteW = 0, whiteH = pianoHeight;
+let blackW = 0, blackH = 0;
+
+function recomputeVisibleKeyLists() {
+  const startIdx = keyOffset;
+  const endIdx = keyOffset + visibleKeysCount;
+  const slice = keyMap.slice(startIdx, endIdx);
+
+  const whitesOnly = slice.filter(k => k.type === "white");
+  whitesOnly.forEach((k, idx) => k.localWIdx = idx);
+  slice.forEach(k => {
+    if (k.type === "white") return;
+    let prevWhiteIndex = -1;
+    for (let i = 0; i < slice.length; i++) {
+      if (slice[i].midi === k.midi) break;
+      if (slice[i].type === "white") prevWhiteIndex = slice[i].localWIdx;
+    }
+    k.localWIdx = prevWhiteIndex;
+  });
+
+  whiteKeys = slice.filter(k=>k.type==="white");
+  blackKeys = slice.filter(k=>k.type==="black");
+
+  whiteW = canvas.width/whiteKeys.length;
+  whiteH = pianoHeight;
+  blackW = whiteW*0.58;
+  blackH = whiteH*0.62;
+}
+
+function updateVisibleKeys() {
+  visibleKeysCount = parseInt(document.getElementById('visibleKeys').value);
+  document.getElementById('keyCountDisplay').textContent = visibleKeysCount;
+
+  const maxOffset = keysTotal - visibleKeysCount;
+  const offsetSlider = document.getElementById('keyOffset');
+  offsetSlider.max = maxOffset;
+  if (keyOffset > maxOffset) {
+    keyOffset = maxOffset;
+    offsetSlider.value = keyOffset;
+    document.getElementById('keyOffsetDisplay').textContent = keyOffset;
+  }
+  
+  
+
+  recomputeVisibleKeyLists();
+  drawWaterfall(0);
+}
+
+function updateKeyOffset() {
+  const maxOffset = keysTotal - visibleKeysCount;
+  keyOffset = Math.min(maxOffset, parseInt(document.getElementById('keyOffset').value));
+  document.getElementById('keyOffsetDisplay').textContent = keyOffset;
+  recomputeVisibleKeyLists();
+  drawWaterfall(0);
+}
+
+recomputeVisibleKeyLists();
+let noteSpeed = 1.0;
+
+function updatePianoSize(){
+  setCanvasSize();
+  pianoY = canvas.height - pianoHeight;
+  saberY = pianoY - 2;
+  recomputeVisibleKeyLists();
+  drawWaterfall(0);
+}
+
+document.getElementById('visibleKeys').oninput = updateVisibleKeys;
+document.getElementById('keyOffset').oninput = updateKeyOffset;
+document.getElementById('pianoWidth').oninput = updatePianoSize;
+
+
+
+// watermark
+let watermarkEnabled = true;
+let watermarkText = "Golden Visuals";
+document.getElementById('watermarkEnabled').checked = true;
+document.getElementById('watermarkEnabled').onchange = e => watermarkEnabled = !!e.target.checked;
+document.getElementById('watermarkText').oninput = e => watermarkText = e.target.value;
+
+// background
+let bgColor = "#121323";
+document.getElementById('bgColor').oninput = e => { bgColor = e.target.value; };
+
+// MIDI
+let notes = [], midiLoaded = false, midiDuration = 0;
+let playing = false, paused = false, startTime = 0;
+let particles = [];
+let rainbowMode = false, bounceParticles = false, ghostNotes = false, gravity = -0.08;
+let particleType = "orb"; let particleAmount = 40; let particleSize = 2.2; let particleSpeed = 1.1; let particleAlpha = 0.9;
+let particleLifetime = 45; // NOWE!
+let particleBlur = false; let pianoAlpha = 1; let nightMode = true; let tempoValue = 120; let autoplay = false;
+let nutGradient = false; let shadowDepth = 18; let saberStyle = "neon";
+let noteDelay = 1.0; let markKeysNotes = false;
+let disableParticles = false;
+let lagDisablerEnabled = true;
+let particlesUp = true;
+let maxParticles = 260;
+let turbulenceAmount = 0.6;
+let turbulenceTime = 0;
+let midiBaseName = "golden_render";
+let activeNotesNow = new Map();
+
+// tekstura nut
+let noteTextureCanvas = document.createElement('canvas');
+noteTextureCanvas.width = 32;
+noteTextureCanvas.height = 32;
+let noteTextureCtx = noteTextureCanvas.getContext('2d');
+let noteTexturePattern = null;
+function buildNoteTexture(){
+  const c = noteTextureCanvas;
+  const g = noteTextureCtx;
+  g.clearRect(0,0,c.width,c.height);
+  g.fillStyle = "rgba(255,255,255,0.06)";
+  g.fillRect(0,0,c.width,c.height);
+  g.fillStyle = "rgba(255,255,255,0.22)";
+  for(let y=0; y<c.height; y+=8){
+    for(let x=0; x<c.width; x+=8){
+      g.beginPath();
+      g.arc(x+1.5, y+1.5, 0.9, 0, Math.PI*2);
+      g.fill();
+    }
+  }
+  g.strokeStyle = "rgba(255,255,255,0.13)";
+  g.lineWidth = 0.7;
+  g.beginPath();
+  for(let i=-c.height; i<c.width; i += 10){
+    g.moveTo(i, 0);
+    g.lineTo(i + c.height, c.height);
+  }
+  g.stroke();
+  noteTexturePattern = ctx.createPattern(c, "repeat");
+}
+buildNoteTexture();
+
+// NOWE UI BINDINGS
+document.getElementById('particleType').onchange = e => particleType = e.target.value;
+document.getElementById('particleAmount').oninput = e => particleAmount = Math.min(500, parseInt(e.target.value));
+document.getElementById('particleSize').oninput = e => particleSize = parseFloat(e.target.value);
+document.getElementById('particleSpeed').oninput = e => particleSpeed = parseFloat(e.target.value);
+document.getElementById('particleAlpha').oninput = e => particleAlpha = parseFloat(e.target.value);
+document.getElementById('particleLifetime').oninput = e => particleLifetime = parseInt(e.target.value); // NOWE!
+document.getElementById('disableParticles').onchange = e => disableParticles = !!e.target.checked;
+document.getElementById('resetParticles').onclick = () => particles = [];
+document.getElementById('particleBlur').onchange = e => particleBlur = !!e.target.checked;
+document.getElementById('pianoAlpha').oninput = e => pianoAlpha = parseFloat(e.target.value);
+document.getElementById('nightMode').onchange = e => nightMode = !!e.target.checked;
+document.getElementById('tempo').oninput = e => tempoValue = parseInt(e.target.value);
+document.getElementById('clearMidi').onclick = () => {notes = []; midiLoaded = false; particles = []; stopWaterfall();};
+document.getElementById('autoplay').onchange = e => autoplay = !!e.target.checked;
+document.getElementById('nutGradient').onchange = e => nutGradient = !!e.target.checked;
+document.getElementById('shadowDepth').oninput = e => shadowDepth = parseInt(e.target.value);
+document.getElementById('saberStyle').onchange = e => saberStyle = e.target.value;
+document.getElementById('rainbowMode').onchange = e => rainbowMode = !!e.target.checked;
+document.getElementById('bounceParticles').onchange = e => bounceParticles = !!e.target.checked;
+document.getElementById('ghostNotes').onchange = e => ghostNotes = !!e.target.checked;
+document.getElementById('gravity').oninput = e => gravity = parseFloat(e.target.value);
+document.getElementById('particlesUp').onchange = e => particlesUp = !!e.target.checked;
+document.getElementById('turbulence').oninput = e => turbulenceAmount = parseFloat(e.target.value);
+document.getElementById('pauseBtn').onclick = () => { paused = !paused; document.getElementById('pauseBtn').textContent = paused ? '▶️ Resume' : '⏸️ Pause'; };
+document.getElementById('noteDelay').oninput = e => { noteDelay = parseFloat(e.target.value); };
+document.getElementById('markKeysNotes').onchange = e => markKeysNotes = !!e.target.checked;
+document.getElementById('lagDisabler').onchange = e => lagDisablerEnabled = e.target.checked;
+document.getElementById('noteSpeed').oninput = e => { noteSpeed = parseFloat(e.target.value); };
+
+// Audio UI
+document.getElementById('audioOffset').oninput = e => {
+  audioOffset = parseFloat(e.target.value) || 0;
+};
+document.getElementById('audioFile').onchange = async function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  audioElement.src = url;
+  audioElement.load();
+  if (tonePlayer) {
+    tonePlayer.dispose();
+    tonePlayer = null;
+  }
+  tonePlayer = new Tone.Player(url).toDestination();
+  tonePlayer.sync();
+  tonePlayer.loop = false;
+  audioLoaded = true;
+};
+
+// RECORDING
+let webmRecorder, webmChunks = [], webmIsRecording = false;
+const recWebmBtn = document.getElementById('recWebmBtn');
+const recWebmStatus = document.getElementById('recWebmStatus');
+
+function startWebmRecording() {
+  const fps = 60;
+  const canvasStream = canvas.captureStream(fps);
+  let finalStream = canvasStream;
+
+  if (audioLoaded) {
+    const audioContext = new AudioContext();
+    const dest = audioContext.createMediaStreamDestination();
+    const sourceNode = audioContext.createMediaElementSource(audioElement);
+
+    // Connect to destination (for playback)
+    sourceNode.connect(audioContext.destination);
+
+    // Connect to recording destination
+    sourceNode.connect(dest);
+
+    // Combine canvas + audio tracks
+    finalStream = new MediaStream();
+    canvasStream.getVideoTracks().forEach(t => finalStream.addTrack(t));
+    dest.stream.getAudioTracks().forEach(t => finalStream.addTrack(t));
+  }
+
+  webmChunks = [];
+  webmRecorder = new MediaRecorder(finalStream, {
+    mimeType: "video/webm; codecs=vp9",
+    videoBitsPerSecond: 5_000_000 // wyższy bitrate dla lepszej jakości
+  });
+
+  // Dodaj opcję zbierania fragmentów co 500ms, żeby nie tracić danych
+  webmRecorder.ondataavailable = (e) => {
+    if (e.data && e.data.size > 0) webmChunks.push(e.data);
+  };
+
+  webmRecorder.onstop = () => {
+    const blob = new Blob(webmChunks, { type: "video/webm" });
+    const url = URL.createObjectURL(blob);
+    const downloadName = midiBaseName + "_particles.webm";
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = downloadName;
+    document.body.appendChild(a);
+    a.click();
+
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+
+    recWebmStatus.textContent = "✅ Recording ready!";
+    recWebmBtn.textContent = "▶️ Record WebM";
+    webmIsRecording = false;
+  };
+
+  webmRecorder.start(500); // timeslice co 500ms
+
+  webmIsRecording = true;
+  recWebmStatus.textContent = "🎥 Recording...";
+  recWebmBtn.textContent = "⏹️ Stop";
+}
+
+// Obsługa przycisku
+recWebmBtn.onclick = () => {
+  if (webmIsRecording) {
+    webmRecorder.stop();
+    recWebmStatus.textContent = "⏳ Finalizing...";
+    recWebmBtn.disabled = true;
+    setTimeout(() => { recWebmBtn.disabled = false; }, 1400);
+  } else {
+    startWebmRecording();
+  }
+};
+
+
+// MIDI load
+function renderColorPickers(tracks){
+  const colorsDiv = document.getElementById('colors');
+  colorsDiv.innerHTML = '<div class="panel-title" style="margin-bottom:8px;">🎨 Track Colors</div>';
+  trackColors.length = tracks;
+  for(let i=0;i<tracks;i++){
+    trackColors[i] = trackColors[i] || defaultTrackColors[i%defaultTrackColors.length];
+    const label = document.createElement('label');
+    label.className = "label";
+    label.innerHTML = `Track ${i+1}: `;
+    const input = document.createElement('input');
+    input.type = "color";
+    input.value = trackColors[i];
+    input.dataset.track = i;
+    input.style.width = "40px";
+    input.oninput = function() {
+      trackColors[parseInt(this.dataset.track)] = this.value;
+    };
+    label.appendChild(input);
+    colorsDiv.appendChild(label);
+  }
+}
+function loadMidiFile(arrayBuffer){
+  const midi = new Midi(arrayBuffer);
+  notes = [];
+  midiDuration = midi.duration;
+  trackCount = midi.tracks.length;
+  renderColorPickers(trackCount);
+
+  const startMidi = firstMidi + keyOffset;
+  const endMidi = startMidi + visibleKeysCount - 1;
+
+  midi.tracks.forEach((track, trackIdx) => {
+    track.notes.forEach(n => {
+      if(n.midi<startMidi || n.midi>endMidi || n.midi>lastMidi) return;
+      notes.push({midi: n.midi, t0: n.time, dur: n.duration,
+        velocity: Math.max(0.18, n.velocity), track: trackIdx});
+    });
+  });
+  notes.sort((a,b)=>a.t0-b.t0);
+  midiLoaded = true;
+  if(autoplay) playWaterfall();
+}
+document.getElementById('midiFile').addEventListener("change",function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const name = file.name || "golden_render";
+  const dot = name.lastIndexOf('.');
+  midiBaseName = dot > 0 ? name.substring(0, dot) : name;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{ loadMidiFile(ev.target.result); };
+  reader.readAsArrayBuffer(file);
+});
+
+// Helpers
+function shadeColor(color, percent) {
+  let R = parseInt(color.slice(1,3),16);
+  let G = parseInt(color.slice(3,5),16);
+  let B = parseInt(color.slice(5,7),16);
+  R = Math.min(255,Math.max(0,R + percent));
+  G = Math.min(255,Math.max(0,G + percent));
+  B = Math.min(255,Math.max(0,B + percent));
+  return '#' + ((1<<24)|(R<<16)|(G<<8)|B).toString(16).slice(1);
+}
+function gradientGold(ctx, x, y, w, h, base){
+  let grad = ctx.createLinearGradient(x, y, 0, y + h);
+  grad.addColorStop(0, base);
+  grad.addColorStop(0.45, "#fff7a1");
+  grad.addColorStop(0.6, "#ffd700ee");
+  grad.addColorStop(1, "#b8860b99");
+  return grad;
+}
+function fillRoundRect(ctx, x, y, w, h, r, fillStyle, gradient=null) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+  ctx.fillStyle = gradient ? gradient : fillStyle;
+  ctx.fill();
+  ctx.restore();
+}
+function rainbowColor(t){
+  let h = (t*7)%360; return "hsl("+h+",85%,56%)";
+}
+function hashNoise(x, y, t){
+  let n = Math.sin(x*12.9898 + y*78.233 + t*0.015) * 43758.5453;
+  return n - Math.floor(n);
+}
+
+// drawParticle - bez zmian
+function drawParticleOrb(p){
+  ctx.save();
+  
+  // globalna przezroczystość (bardziej widoczne)
+  ctx.globalAlpha = Math.min(1, p.alpha * 1.2);
+
+  // gradient radialny w kolorze nuty
+  let rad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius);
+
+  // jaśniejszy środek w kolorze nuty
+  const col = rainbowMode ? rainbowColor(p.life*0.7 + p.x*0.05) : p.color;
+  const brightCol = shadeColor(col, 40); // lekko jaśniejszy środek
+
+  rad.addColorStop(0, brightCol);           // środek jasny
+  rad.addColorStop(0.4, col + "aa");        // lekko przezroczysty kolor nuty
+  rad.addColorStop(1, "rgba(0,0,0,0)");     // zupełnie przezroczysty brzeg
+
+  ctx.fillStyle = rad;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.restore();
+}
+function drawParticleSpark(p){
+  ctx.save();
+  ctx.globalAlpha = p.alpha;
+  ctx.translate(p.x, p.y);
+  ctx.rotate(p.rot);
+  ctx.fillStyle = rainbowMode ? rainbowColor(p.life*1.5 + p.y*0.1) : p.color;
+  ctx.shadowBlur = particleBlur ? 10 : 4;
+  ctx.shadowColor = ctx.fillStyle;
+  ctx.fillRect(-p.radius*1.6, -p.radius*0.4, p.radius*3.2, p.radius*0.8);
+  ctx.restore();
+}
+function drawParticleComet(p){
+  ctx.save();
+  ctx.globalAlpha = p.alpha;
+  const col = rainbowMode ? rainbowColor(p.life*1.2 + p.x*0.2) : p.color;
+  const tail = p.radius*4;
+  const angle = Math.atan2(p.vy, p.vx);
+  ctx.translate(p.x, p.y);
+  ctx.rotate(angle);
+  let grad = ctx.createLinearGradient(-tail, 0, 0, 0);
+  grad.addColorStop(0, "rgba(0,0,0,0)");
+  grad.addColorStop(0.5, col + "aa");
+  grad.addColorStop(1, "#ffffff");
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(-tail, -p.radius);
+  ctx.lineTo(0, -p.radius*0.35);
+  ctx.lineTo(0, p.radius*0.35);
+  ctx.lineTo(-tail, p.radius);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+function drawParticleRing(p){
+  ctx.save();
+  ctx.globalAlpha = p.alpha;
+  ctx.lineWidth = 1.5;
+  const col = rainbowMode ? rainbowColor(p.life + p.y*0.4) : p.color;
+  ctx.strokeStyle = col;
+  ctx.shadowBlur = particleBlur ? 8 : 3;
+  ctx.shadowColor = col;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
+  ctx.stroke();
+  ctx.restore();
+}
+function drawParticleFlake(p){
+  ctx.save();
+  ctx.globalAlpha = p.alpha;
+  ctx.translate(p.x, p.y);
+  ctx.rotate(p.rot);
+  const col = rainbowMode ? rainbowColor(p.life*0.9 + p.x*0.2) : p.color;
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 1;
+  ctx.shadowBlur = particleBlur ? 7 : 3;
+  ctx.shadowColor = col;
+  const r = p.radius;
+  for(let i=0;i<4;i++){
+    ctx.rotate(Math.PI/4);
+    ctx.beginPath();
+    ctx.moveTo(-r, 0);
+    ctx.lineTo(r, 0);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawParticleSpikes(p){
+  ctx.save();
+  ctx.globalAlpha = p.alpha;
+  ctx.translate(p.x, p.y);
+  ctx.rotate(p.rot);
+  const col = rainbowMode ? rainbowColor(p.life*1.3 + p.x*0.2) : p.color;
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 1.5;
+  ctx.shadowBlur = particleBlur ? 8 : 3;
+  ctx.shadowColor = col;
+  const len = p.radius * 3;
+  for(let i=0;i<8;i++){
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.lineTo(len,0);
+    ctx.stroke();
+    ctx.rotate(Math.PI/4);
+  }
+  ctx.restore();
+}
+
+function drawParticleStar(p){
+  ctx.save();
+  ctx.globalAlpha = p.alpha;
+  ctx.translate(p.x, p.y);
+  ctx.rotate(p.rot);
+  const col = rainbowMode ? rainbowColor(p.life*1.5 + p.y*0.2) : p.color;
+  ctx.fillStyle = col;
+  ctx.shadowBlur = particleBlur ? 6 : 2;
+  ctx.shadowColor = col;
+  ctx.beginPath();
+  const spikes = 5;
+  const outer = p.radius*2;
+  const inner = p.radius;
+  for(let i=0;i<spikes;i++){
+    let ang = i * (Math.PI*2/spikes);
+    let x = Math.cos(ang) * outer;
+    let y = Math.sin(ang) * outer;
+    ctx.lineTo(x,y);
+    ang += Math.PI/spikes;
+    x = Math.cos(ang)*inner;
+    y = Math.sin(ang)*inner;
+    ctx.lineTo(x,y);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawParticleSwirl(p){
+  ctx.save();
+  ctx.globalAlpha = p.alpha;
+  const col = rainbowMode ? rainbowColor(p.life*1.2 + p.x*0.3) : p.color;
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 1.5;
+  ctx.shadowBlur = particleBlur ? 5 : 2;
+  ctx.shadowColor = col;
+  ctx.beginPath();
+  for(let i=0;i<5;i++){
+    let angle = p.life*0.5 + i*1.2;
+    let x = p.x + Math.cos(angle) * p.radius*3;
+    let y = p.y + Math.sin(angle) * p.radius*3;
+    ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+// Integracja z spawn i draw
+function drawParticle(p){
+  switch(p.type){
+    case "orb": drawParticleOrb(p); break;
+    case "spark": drawParticleSpark(p); break;
+    case "comet": drawParticleComet(p); break;
+    case "ring": drawParticleRing(p); break;
+    case "flake": drawParticleFlake(p); break;
+    case "spikes": drawParticleSpikes(p); break;
+    case "star": drawParticleStar(p); break;
+    case "swirl": drawParticleSwirl(p); break;
+  }
+}
+
+
+function spawnParticles(x, y, color) {
+  if(disableParticles) return;
+  if(lagDisablerEnabled && particles.length > maxParticles) return;
+
+  for (let i = 0; i < particleAmount; i++) {
+    let angle = Math.random() * Math.PI * 2;
+    let base = {
+      x: x,
+      y: y,
+      vx: (Math.random()-0.5)*particleSpeed*1.4,
+      vy: particlesUp ? -Math.random()*particleSpeed*1.2 : Math.random()*particleSpeed*1.2,
+      alpha: particleAlpha + Math.random()*0.15,
+      color: color,
+      radius: particleSize + Math.random()*2.2,
+      life: Math.random()*particleLifetime*0.7 + particleLifetime*0.3, // ZMIENIONE!
+      type: particleType,
+      rot: Math.random()*Math.PI*2
+    };
+    particles.push(base);
+  }
+}
+
+// DRAW
+function drawWaterfall(curT){
+  activeNotesNow.clear();
+
+  // TŁO
+  ctx.save();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
+
+  const startMidi = firstMidi + keyOffset;
+  const endMidi = startMidi + visibleKeysCount - 1;
+
+  let _activeNotes = 0;
+  for(let n of notes){
+    if (n.midi < startMidi || n.midi > endMidi) continue;
+
+    const kFull = keyMap[n.midi - firstMidi];
+    const isBlackKey = kFull.type === "black";
+    let localObj = null;
+    if (isBlackKey) {
+      localObj = blackKeys.find(k => k.midi === n.midi);
+    } else {
+      localObj = whiteKeys.find(k => k.midi === n.midi);
+    }
+    if (!localObj) continue;
+
+    let x = localObj.localWIdx * whiteW;
+    let w = whiteW - 2;
+    if(isBlackKey) {
+      x += whiteW - blackW / 2;
+      w = blackW;
+    }
+
+    let h = n.dur * waterfallScale * noteSpeed;
+    let y = pianoY - h - (n.t0 + noteDelay - curT) * waterfallScale * noteSpeed;
+    if(y + h < 0 || y > pianoY - 12) continue;
+
+    let trCol = trackColors[n.track % trackColors.length] || defaultTrackColors[n.track % defaultTrackColors.length];
+    let color = isBlackKey
+      ? shadeColor(trCol, nightMode ? -42 : -22)
+      : nightMode ? shadeColor(trCol, 15) : trCol;
+    if(rainbowMode) color = rainbowColor(n.midi * 12 + curT * 20 + n.track * 48);
+
+    let ghost = ghostNotes && n.velocity < 0.25;
+
+    ctx.globalAlpha = ghost ? 0.3 : 1.0;
+
+    const rad = Math.min(w, waterfallRadius);
+    if(nutGradient && !ghost){
+      fillRoundRect(ctx, x, y, w, h, rad, color, gradientGold(ctx, x, y, w, h, color));
+    } else if(ghost){
+      fillRoundRect(ctx, x, y, w, h, rad, "#bbbbbb");
+    } else{
+      fillRoundRect(ctx, x, y, w, h, rad, color);
+    }
+
+    if(!ghost && noteTexturePattern){
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = noteTexturePattern;
+      ctx.fillRect(x, y, w, h);
+      ctx.restore();
+    }
+
+    // USUNIĘTE podpisy dla cis, dis, fis, gis, ais (czarne klawisze)
+    if (markKeysNotes && !isBlackKey && ['C','D','E','F','G','A','B'].includes(kFull.note.replace('#', ''))) {
+      ctx.save();
+      ctx.font = "bold 14px Arial";
+      ctx.fillStyle = "#643b00";
+      ctx.globalAlpha = ghost ? 0.6 : 0.9;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(kFull.note.replace('#', ''), x + w/2, y + h/2);
+      ctx.restore();
+    }
+
+    if(curT >= n.t0 + noteDelay && curT <= (n.t0 + n.dur + noteDelay)){
+      _activeNotes++;
+      activeNotesNow.set(n.midi, { track:n.track, color:color, isBlack:isBlackKey, localObj });
+    }
+    ctx.globalAlpha = 1;
+  }
+
+ // Saber
+ctx.save();
+ctx.lineCap = "round";
+ctx.globalCompositeOperation = "source-over";
+
+const time = performance.now();
+const t = time * 0.25;
+const breathe = (Math.sin(time / 1800) + 1) / 2;
+
+/* === KOLORY ZDJĘCIA === */
+const coreColor = "#a0f8ff";  // jasny niebieski rdzeń
+const midColor  = "#17ffff";  // neonowy błękit
+const edgeColor = "#05e6ff";  // mocny krawędziowy błękit
+
+/* === PARAMETRY === */
+const flameHeight = 6 + 3 * breathe; // wyższy płomień
+const step = 12;
+
+/* ================= RDZEŃ ================= */
+ctx.strokeStyle = coreColor;
+ctx.shadowColor = coreColor;
+ctx.shadowBlur = 12;
+ctx.lineWidth = 5 + breathe;
+ctx.globalAlpha = 0.95;
+
+ctx.beginPath();
+ctx.moveTo(0, saberY);
+
+for (let x = 0; x <= canvas.width; x += step) {
+  const micro = Math.sin(x * 0.06 + t * 0.008) * 1.2;
+  ctx.lineTo(x, saberY + micro);
+}
+ctx.stroke();
+
+/* ================= PŁOMIEŃ ================= */
+ctx.strokeStyle = midColor;
+ctx.shadowColor = midColor;
+ctx.shadowBlur = 20;
+ctx.lineWidth = 8 + breathe;
+ctx.globalAlpha = 0.4;
+
+ctx.beginPath();
+ctx.moveTo(0, saberY);
+
+for (let x = 0; x <= canvas.width; x += step) {
+  const flame = Math.sin(x * 0.04 + t * 0.012) * flameHeight;
+  ctx.lineTo(x, saberY - flame);
+}
+ctx.stroke();
+
+/* ================= KRAWĘDZIE (MIRAGE) ================= */
+ctx.strokeStyle = edgeColor;
+ctx.shadowColor = edgeColor;
+ctx.shadowBlur = 32;
+ctx.lineWidth = 12 + 2 * breathe;
+ctx.globalAlpha = 0.2;
+
+ctx.beginPath();
+ctx.moveTo(0, saberY);
+
+for (let x = 0; x <= canvas.width; x += step) {
+  const heat = Math.sin(x * 0.03 + t * 0.015) * (flameHeight * 1.8);
+  ctx.lineTo(x, saberY - heat);
+}
+ctx.stroke();
+
+/* ================= EMBERS ================= */
+ctx.save();
+ctx.globalCompositeOperation = "lighter";
+ctx.fillStyle = coreColor;
+ctx.shadowColor = midColor;
+ctx.shadowBlur = 14;
+ctx.globalAlpha = 0.55;
+
+const emberCount = 6;
+
+for (let i = 0; i < emberCount; i++) {
+  const phase = (t * 0.025 + i * 80) % 80;
+
+  const x = (i / emberCount) * canvas.width + Math.sin(t * 0.005 + i) * 20;
+  const y = saberY - phase;
+  const size = 1 + Math.sin(t * 0.004 + i) * 0.6;
+
+  ctx.beginPath();
+  ctx.arc(x, y, size, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+ctx.restore();
+ctx.restore();
+
+
+  // POPRAWIONY WATERMARK - PRZEZROCZYSTY I ŁADNIEJSZY
+  if (watermarkEnabled && watermarkText.trim().length > 0) {
+    ctx.save();
+    const t = performance.now() * 0.0015;
+    const pulseAlpha = 0.12 + 0.08 * Math.sin(t * 3);
+    
+    let col;
+    if (saberStyle === "gold") {
+      col = "#ffd95a";
+    } else if (saberStyle === "dynamic") {
+      col = rainbowColor(t * 0.8);
+    } else {
+      col = "#a0f8ff";
+    }
+    
+    // Gradientowy tekst z przezroczystością
+    ctx.font = "bold 32px 'Segoe UI', Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 18;
+    ctx.globalAlpha = pulseAlpha;
+    
+    // Podwójny tekst dla lepszego efektu
+    ctx.fillStyle = col + "44";
+    ctx.fillText(watermarkText, canvas.width / 2, saberY - 8);
+    
+    ctx.fillStyle = col + "88";
+    ctx.fillText(watermarkText, canvas.width / 2, saberY - 12);
+    
+    ctx.restore();
+  }
+
+  // cień pianina
+  if(shadowDepth > 0){
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = "#000";
+    ctx.shadowBlur = shadowDepth;
+    ctx.shadowColor = "#000";
+    ctx.fillRect(0, pianoY + whiteH - 1, canvas.width, 28);
+    ctx.restore();
+  }
+
+  // Białe klawisze - bez zmian
+  ctx.globalAlpha = pianoAlpha;
+  for(let i = 0; i < whiteKeys.length; i++){
+    const k = whiteKeys[i];
+    const x = k.localWIdx * whiteW;
+    const midi = k.midi;
+    const active = activeNotesNow.get(midi);
+    let baseColTop, baseColMid, baseColBottom;
+
+    if (active) {
+      const trCol = active.color;
+      baseColTop    = shadeColor(trCol, 40);
+      baseColMid    = shadeColor(trCol, 5);
+      baseColBottom = shadeColor(trCol, -25);
+    } else {
+      if (nightMode) {
+        baseColTop    = "#f6f4f0";
+        baseColMid    = "#fefefe";
+        baseColBottom = "#c5bcb0";
+      } else {
+        baseColTop    = "#ffffff";
+        baseColMid    = "#f5f5f5";
+        baseColBottom = "#c9c0b2";
+      }
+    }
+
+    let grad = ctx.createLinearGradient(x, pianoY, x, pianoY + whiteH);
+    grad.addColorStop(0, baseColTop);
+    grad.addColorStop(0.35, baseColMid);
+    grad.addColorStop(1, baseColBottom);
+
+    ctx.save();
+    fillRoundRect(ctx, x + 1, pianoY, whiteW - 2, whiteH, 4, grad);
+
+    let sideGrad = ctx.createLinearGradient(x, pianoY, x + whiteW, pianoY);
+    sideGrad.addColorStop(0, "rgba(0,0,0,0.40)");
+    sideGrad.addColorStop(0.15, "rgba(0,0,0,0.18)");
+    sideGrad.addColorStop(0.5, "rgba(0,0,0,0.05)");
+    sideGrad.addColorStop(1, "rgba(0,0,0,0.0)");
+    ctx.fillStyle = sideGrad;
+    ctx.fillRect(x + 1, pianoY, whiteW - 2, whiteH);
+
+    let topGrad = ctx.createLinearGradient(x, pianoY, x, pianoY + 26);
+    topGrad.addColorStop(0, "rgba(255,255,255,0.9)");
+    topGrad.addColorStop(0.6, "rgba(255,255,255,0.1)");
+    topGrad.addColorStop(1, "rgba(255,255,255,0.0)");
+    ctx.fillStyle = topGrad;
+    ctx.fillRect(x + 1, pianoY, whiteW - 2, 26);
+
+    ctx.strokeStyle = "#444";
+    ctx.lineWidth = 0.8;
+    ctx.strokeRect(x + 1, pianoY, whiteW - 2, whiteH);
+    ctx.restore();
+
+    // Podpisy tylko na białych klawiszach
+    if (markKeysNotes && ['C','D','E','F','G','A','B'].includes(k.note.replace('#',''))) {
+      ctx.save();
+      let isActive = !!active;
+      let baseSize = 17;
+      let fontSize = isActive ? baseSize * 1.35 : baseSize;
+      ctx.font = "bold " + fontSize + "px Arial";
+      ctx.fillStyle = "#32406f";
+      ctx.globalAlpha = (isActive ? 0.95 : 0.7) * pianoAlpha;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(k.note.replace('#',''), x + whiteW/2, pianoY + whiteH - 6);
+      ctx.restore();
+    }
+  }
+
+  // Czarne klawisze - bez podpisów
+  for(let k of blackKeys){
+    const x = k.localWIdx * whiteW + whiteW - blackW / 2;
+    const midi = k.midi;
+    const active = activeNotesNow.get(midi);
+
+    let topCol, midCol, bottomCol;
+    if (active) {
+      const trCol = active.color;
+      topCol    = shadeColor(trCol, 30);
+      midCol    = shadeColor(trCol, -10);
+      bottomCol = shadeColor(trCol, -45);
+    } else {
+      topCol    = "#34343a";
+      midCol    = "#12131a";
+      bottomCol = "#020308";
+    }
+
+    let grad = ctx.createLinearGradient(x, pianoY, x, pianoY + blackH);
+    grad.addColorStop(0, topCol);
+    grad.addColorStop(0.4, midCol);
+    grad.addColorStop(1, bottomCol);
+
+    ctx.save();
+    fillRoundRect(ctx, x + 1, pianoY, blackW - 2, blackH, 4, grad);
+
+    let topGrad = ctx.createLinearGradient(x, pianoY, x, pianoY + 18);
+    topGrad.addColorStop(0, "rgba(255,255,255,0.35)");
+    topGrad.addColorStop(0.5, "rgba(255,255,255,0.08)");
+    topGrad.addColorStop(1, "rgba(255,255,255,0.0)");
+    ctx.fillStyle = topGrad;
+    ctx.fillRect(x + 2, pianoY + 1, blackW - 4, 18);
+
+    ctx.strokeStyle = "#111";
+    ctx.lineWidth = 0.8;
+    ctx.strokeRect(x + 1, pianoY, blackW - 2, blackH);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+
+  // Particles - ZMIENIONE lifetime
+  if(!disableParticles){
+    const startMidi2 = firstMidi + keyOffset;
+    const endMidi2 = startMidi2 + visibleKeysCount - 1;
+
+    for(let n of notes){
+      if (n.midi < startMidi2 || n.midi > endMidi2) continue;
+      if(curT < n.t0 + noteDelay || curT > (n.t0 + n.dur + noteDelay)) continue;
+
+      const data = activeNotesNow.get(n.midi);
+      if (!data) continue;
+
+      const isBlackKey = data.isBlack;
+      const localObj = data.localObj;
+      let baseX = localObj.localWIdx * whiteW;
+      const partX = !isBlackKey
+        ? baseX + whiteW / 2
+        : baseX + whiteW - blackW / 2 + blackW / 2;
+      const partY = pianoY - 3;
+      spawnParticles(partX, partY, data.color);
+    }
+
+    turbulenceTime += 1;
+    for(let i = particles.length - 1; i >= 0; i--){
+      let p = particles[i];
+
+      p.x += p.vx;
+      p.y += p.vy;
+
+      if(turbulenceAmount > 0){
+        const n1 = hashNoise(p.x*0.02, p.y*0.02, turbulenceTime*0.01) - 0.5;
+        const n2 = hashNoise(p.y*0.02 + 100, p.x*0.02 + 50, turbulenceTime*0.01) - 0.5;
+        p.vx += n1 * 0.15 * turbulenceAmount;
+        p.vy += n2 * 0.15 * turbulenceAmount;
+      }
+
+      if(bounceParticles && p.y > pianoY - 10 && particlesUp){
+        p.vy *= -0.35;
+        p.y = pianoY - 10;
+      }
+
+      p.vy += gravity;
+      p.alpha -= 0.012;
+      p.radius *= 0.993;
+      p.life--;
+      p.rot += 0.08;
+
+      if(p.type === 'orb')      drawParticleOrb(p);
+      else if(p.type === 'spark')drawParticleSpark(p);
+      else if(p.type === 'comet')drawParticleComet(p);
+      else if(p.type === 'ring') drawParticleRing(p);
+      else if(p.type === 'flake')drawParticleFlake(p);
+	  else if(p.type === 'spikes') drawParticleSpikes(p);
+      else if(p.type === 'star')   drawParticleStar(p);
+      else if(p.type === 'swirl')  drawParticleSwirl(p);
+
+      if (p.alpha <= 0.01 || p.radius <= 0.25 || p.life < 0 ||
+          (particlesUp && p.y < -50) || (!particlesUp && p.y > canvas.height)) {
+        particles.splice(i, 1);
+      }
+    }
+  }
+
+  // HUD
+  ctx.save();
+  ctx.globalAlpha = 0.92;
+  ctx.font = "bold 16px 'Segoe UI', Arial";
+  ctx.fillStyle = "#ffd95a";
+  ctx.textAlign = "right";
+  let end = playing ? Math.max(0, (midiDuration + noteDelay - (curT || 0))).toFixed(1) : "0.0";
+  let left = playing ? notes.filter(n => n.t0 + noteDelay > curT).length : 0;
+  ctx.fillText(`Keys: ${visibleKeysCount} | Offset: ${keyOffset} | Notes: ${left} | Time: ${end}s | Speed: ${noteSpeed.toFixed(1)}x | Lifetime: ${particleLifetime}`, canvas.width - 20, 32);
+  ctx.restore();
+
+  document.getElementById('status').textContent = playing ? `Keys: ${visibleKeysCount}, Offset: ${keyOffset}, Notes: ${left}, Time: ${end}s` : '';
+}
+
+// PLAYBACK
+function playWaterfall(){
+  if(!midiLoaded || notes.length === 0) return;
+  playing = true;
+  paused = false;
+  startTime = performance.now() / 1000;
+  document.getElementById('pauseBtn').textContent = '⏸️ Pause';
+
+  if (!audioLoaded) return;
+
+  audioElement.currentTime = 0;
+  setTimeout(() => {
+    audioElement.play();
+  }, audioOffset * 1000);
+
+  if (tonePlayer) {
+    Tone.Transport.stop();
+    Tone.Transport.cancel();
+    Tone.Transport.seconds = 0;
+    tonePlayer.start(audioOffset);
+    Tone.Transport.start();
+  }
+}
+function stopWaterfall(){
+  playing = false;
+  audioElement.pause();
+  audioElement.currentTime = 0;
+  if (tonePlayer) tonePlayer.stop();
+  Tone.Transport.stop();
+  Tone.Transport.cancel();
+}
+document.getElementById('start').onclick = () => { playWaterfall(); };
+document.getElementById('stop').onclick = () => { stopWaterfall(); };
+document.getElementById('randomColors').onclick = () => {
+  for(let i=0;i<trackColors.length;i++)
+    trackColors[i]= "#"+Math.floor(Math.random()*16777215).toString(16).padStart(6,'0');
+};
+document.getElementById('snapshotBtn').onclick = () => {
+  let link = document.createElement('a');
+  link.download = "golden_piano_particles.png";
+  link.href = canvas.toDataURL();
+  link.click();
+};
+
+// ANIMACJA
+function animate(){
+  requestAnimationFrame(animate);
+  let curT = 0;
+  if(playing && !paused){
+    curT = (performance.now() / 1000) - startTime;
+    drawWaterfall(curT);
+    if(curT > midiDuration + noteDelay + 1) stopWaterfall();
+  } else {
+    drawWaterfall(0);
+  }
+}
+animate();
+// --- EXPORT FUNCTION ---
+function exportPreset() {
+  const preset = {
+    particleType, particleAmount, particleSize, particleSpeed, particleAlpha, particleLifetime,
+    disableParticles, particleBlur,
+    pianoAlpha, nightMode, rainbowMode, ghostNotes, bounceParticles, particlesUp,
+    gravity, turbulenceAmount, lagDisablerEnabled,
+    noteSpeed, noteDelay, tempoValue, markKeysNotes, saberStyle,
+    bgColor, watermarkEnabled, watermarkText,
+    visibleKeysCount, keyOffset,
+    trackColors
+  };
+
+  const blob = new Blob([JSON.stringify(preset, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "preset.gv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// --- IMPORT FUNCTION ---
+function importPreset(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const preset = JSON.parse(e.target.result);
+
+      // Update all variables safely
+      particleType = preset.particleType ?? particleType;
+      particleAmount = preset.particleAmount ?? particleAmount;
+      particleSize = preset.particleSize ?? particleSize;
+      particleSpeed = preset.particleSpeed ?? particleSpeed;
+      particleAlpha = preset.particleAlpha ?? particleAlpha;
+      particleLifetime = preset.particleLifetime ?? particleLifetime;
+      disableParticles = preset.disableParticles ?? disableParticles;
+      particleBlur = preset.particleBlur ?? particleBlur;
+
+      pianoAlpha = preset.pianoAlpha ?? pianoAlpha;
+      nightMode = preset.nightMode ?? nightMode;
+      rainbowMode = preset.rainbowMode ?? rainbowMode;
+      ghostNotes = preset.ghostNotes ?? ghostNotes;
+      bounceParticles = preset.bounceParticles ?? bounceParticles;
+      particlesUp = preset.particlesUp ?? particlesUp;
+
+      gravity = preset.gravity ?? gravity;
+      turbulenceAmount = preset.turbulenceAmount ?? turbulenceAmount;
+      lagDisablerEnabled = preset.lagDisablerEnabled ?? lagDisablerEnabled;
+
+      noteSpeed = preset.noteSpeed ?? noteSpeed;
+      noteDelay = preset.noteDelay ?? noteDelay;
+      tempoValue = preset.tempoValue ?? tempoValue;
+      markKeysNotes = preset.markKeysNotes ?? markKeysNotes;
+      saberStyle = preset.saberStyle ?? saberStyle;
+
+      bgColor = preset.bgColor ?? bgColor;
+      watermarkEnabled = preset.watermarkEnabled ?? watermarkEnabled;
+      watermarkText = preset.watermarkText ?? watermarkText;
+
+      visibleKeysCount = preset.visibleKeysCount ?? visibleKeysCount;
+      keyOffset = preset.keyOffset ?? keyOffset;
+
+      if (preset.trackColors && Array.isArray(preset.trackColors)) {
+        trackColors = preset.trackColors.slice();
+      }
+
+      // OPTIONAL: update UI elements if you have sliders/checks
+      document.getElementById('particleType').value = particleType;
+      document.getElementById('particleAmount').value = particleAmount;
+      document.getElementById('particleSize').value = particleSize;
+      document.getElementById('particleSpeed').value = particleSpeed;
+      document.getElementById('particleAlpha').value = particleAlpha;
+
+      alert("✅ Preset imported successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("❌ Error importing preset!");
+    }
+  };
+  reader.readAsText(file);
+}
+
+// --- BUTTON HANDLERS ---
+document.getElementById('exportPresetBtn').onclick = exportPreset;
+
+document.getElementById('importPresetBtn').onclick = () => {
+  document.getElementById('importPresetFile').click();
+};
+
+document.getElementById('importPresetFile').onchange = e => {
+  if (e.target.files.length > 0) importPreset(e.target.files[0]);
+};
+let disableSaber = false; // domyślnie włączony
+
+function toggleSaber(enabled) {
+  if (enabled !== undefined) {
+    disableSaber = !enabled;
+  } else {
+    disableSaber = !disableSaber;
+  }
+  const btn = document.getElementById('toggleSaberBtn');
+  btn.textContent = disableSaber ? "⚡ Enable Saber" : "⚡ Disable Saber";
+}
+
+// przycisk
+document.getElementById('toggleSaberBtn').onclick = () => {
+  toggleSaber(); // przełącza stan
+};
+let currentSF2 = null;
+let midiPlayer = null;
+
+// Wgrywanie SF2
+document.getElementById('sf2File').addEventListener('change', async function(e){
+    const file = e.target.files[0];
+    if(!file) return;
+
+    const url = URL.createObjectURL(file);
+    // Tonelib + Soundfont-player
+    if(midiPlayer) midiPlayer.dispose();
+
+    // Tworzymy nowy sampler
+    midiPlayer = new Tone.Sampler({
+        urls: {},   // w SF2 będzie mapowane automatycznie
+        release: 1,
+        baseUrl: url
+    }).toDestination();
+
+    await midiPlayer.load(); // ładujemy SoundFont
+    currentSF2 = file.name;
+    console.log("SF2 Loaded:", currentSF2);
+});
+// === HIDE / SHOW UI (H key) ===
+let uiVisible = true;
+const uiElement = document.getElementById('ui');
+
+document.addEventListener('keydown', (e) => {
+  // ignoruj jeśli użytkownik pisze w input/textarea
+  const tag = document.activeElement.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || document.activeElement.isContentEditable) return;
+
+  if (e.key === "h" || e.key === "H") {
+    uiVisible = !uiVisible;
+
+    if (uiVisible) {
+      uiElement.style.display = "block";
+    } else {
+      uiElement.style.display = "none";
+    }
+  }
+});
+function togglePause() {
+
+  if (!isPaused) {
+    // PAUSE
+    pausedTime = Tone.Transport.seconds;
+    Tone.Transport.pause();
+    isPaused = true;
+  } else {
+    // RESUME
+    Tone.Transport.seconds = pausedTime;
+    Tone.Transport.start();
+    isPaused = false;
+  }
+}
+
+let isFullscreen = false;
+let originalCanvasWidth = canvas.width;
+let originalCanvasHeight = canvas.height;
+
+document.addEventListener('keydown', (e) => {
+  if(e.key === "Escape") {
+    isFullscreen = !isFullscreen;
+
+    if(isFullscreen){
+      // zapisz oryginalny rozmiar
+      originalCanvasWidth = canvas.width;
+      originalCanvasHeight = canvas.height;
+
+      // fullscreen
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    } else {
+      // powrót do oryginalnego
+      canvas.width = originalCanvasWidth;
+      canvas.height = originalCanvasHeight;
+    }
+
+    // przelicz pozycje klawiszy
+    recomputeVisibleKeyLists();
+    pianoY = canvas.height - pianoHeight;
+    saberY = pianoY - 2;
+
+    // odśwież wszystko
+    drawWaterfall(0);
+  }
+});
+
+// resize okna w fullscreen
+window.addEventListener('resize', () => {
+  if(isFullscreen){
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    recomputeVisibleKeyLists();
+    pianoY = canvas.height - pianoHeight;
+    saberY = pianoY - 2;
+    drawWaterfall(0);
+  }
+});
+
+
+
+</script>
+</body>
+</html>
